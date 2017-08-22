@@ -1,3 +1,4 @@
+import keras
 from keras.applications.resnet50 import ResNet50
 from keras.preprocessing import image
 from keras.models import Model
@@ -43,8 +44,7 @@ def resizeimg(arr):
     hw_tuple = (224,224)
     img = img.resize(hw_tuple)
     # need to add grayimg to rgb
-
-
+    img = img.convert("RGB")
     x = image.img_to_array(img)                                   
     x = np.expand_dims(x, axis=0)                                 
     return preprocess_input(x)
@@ -56,7 +56,9 @@ def generate_train(path):
             # create numpy arrays of input data
             # and labels, from each line in the file
             x = resizeimg(samples[i,1:])
-            yield ({'input': x}, {'output': samples[i,0]})
+            y = keras.utils.to_categorical(samples[i,0], num_classes=10)
+            #yield ({'input_1': x}, {'output': y})
+            yield (x, y)
         f.close()
 
 def generate_val(path):
@@ -66,7 +68,9 @@ def generate_val(path):
             # create numpy arrays of input data
             # and labels, from each line in the file
             x = resizeimg(samples[i,1:])
-            yield ({'input': x}, {'output': samples[i,0]})
+            y = keras.utils.to_categorical(samples[i,0], num_classes=10)
+            #yield ({'input_1': x}, {'output': y})
+            yield (x, y)
         f.close() 
 
 tensorboard = TensorBoard(log_dir='./logs')
