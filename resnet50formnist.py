@@ -44,7 +44,7 @@ model = Model(inputs=base_model.input, outputs=predictions)
 #model.summary()
 
 #from keras.utils import plot_model
-#plot_model(model, to_file='modelresnet50.png')
+#plot_model(model, to_file='model.png')
 
 # first: train only the top layers (which were randomly initialized)
 # i.e. freeze all convolutional InceptionV3 layers

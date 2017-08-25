@@ -1,3 +1,16 @@
+import os
+#gpu_id = '1,2'
+gpu_id = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
+os.system('echo $CUDA_VISIBLE_DEVICES')
+
+import tensorflow as tf
+#config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
+config = tf.ConfigProto(allow_soft_placement=True)
+config.gpu_options.allow_growth = True
+#config.gpu_options.per_process_gpu_memory_fraction = 0.4
+
+
 import random
 import os.path
 import numpy as np
@@ -10,7 +23,7 @@ the total number of training samples is 42000, and that of testing samples is 28
 during training, 32000 for traning, and 10000 for evaluation
 '''
 total_size = 42000
-batch_size = 100
+batch_size = 200
 train_total_size = 32000
 test_batch_size = 400
 
@@ -108,9 +121,9 @@ def main():
   train_x = df.iloc[index[:train_total_size],1:].values
   train_y_ = df.iloc[index[:train_total_size],0].values
   train_y = convert2onehot(train_y_, 10)
-  test_x = df.iloc[index[train_total_size:],1:].values
-  test_y_ = df.iloc[index[train_total_size:],0].values
-  test_y = convert2onehot(test_y_, 10)
+  evaluate_x = df.iloc[index[train_total_size:],1:].values
+  evaluate_y_ = df.iloc[index[train_total_size:],0].values
+  evaluate_y = convert2onehot(evaluate_y_, 10)
 
   with tf.Graph().as_default():
     # Create the model
@@ -134,36 +147,33 @@ def main():
     summary = tf.summary.merge_all()
     saver = tf.train.Saver()
 
-    with tf.Session() as sess:
+    with tf.Session(config=config) as sess:
       sess.run(tf.global_variables_initializer())
 
-      summary_writer = tf.summary.FileWriter('/home/huanggp/digit_recognizer/logs', sess.graph)
+      summary_writer = tf.summary.FileWriter('./fullylogs', sess.graph)
 
-      epoch = int(train_total_size/batch_size)
-      for j in range(100001):
-        i = j%epoch
-        if j % 50 == 0:
-          train_accuracy = 0.0
-          train_accuracy = accuracy.eval(feed_dict={x: train_x[i*batch_size:(i+1)*batch_size],
-               y_: train_y[i*batch_size:(i+1)*batch_size], keep_prob: 1.0})
+      iterator = int(train_total_size/batch_size)
+      for j in range(400001):
+        i = j%iterator
+        if j % 2000 == 0:
+          train_accuracy = accuracy.eval(feed_dict={x: evaluate_x ,y_: evaluate_y, keep_prob: 1.0})
           print('%s  step %d, training accuracy %g' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), j, train_accuracy))
 
-          summary_str = sess.run(summary, feed_dict={x: train_x[i*batch_size:(i+1)*batch_size],
-              y_: train_y[i*batch_size:(i+1)*batch_size], keep_prob: 1.0})
+          summary_str = sess.run(summary, feed_dict={x: evaluate_x ,y_: evaluate_y, keep_prob: 1.0})
           summary_writer.add_summary(summary_str, j)
           summary_writer.flush()
 
         if j % 10000 == 0:
-          checkpoint_file = os.path.join('/home/huanggp/digit_recognizer/logs', 'model.ckpt')
+          checkpoint_file = os.path.join('./fullylogs', 'model.ckpt')
           saver.save(sess, checkpoint_file, global_step=j)
 
         train_step.run(feed_dict={x: train_x[i*batch_size:(i+1)*batch_size],
             y_: train_y[i*batch_size:(i+1)*batch_size], keep_prob: 0.5})
 
-      for k in range((total_size-train_total_size)/test_batch_size):
-        train_accuracy += accuracy.eval(feed_dict={x: test_x[k*test_batch_size:(k+1)*test_batch_size],
-            y_: test_y[k*test_batch_size:(k+1)*test_batch_size], keep_prob: 1.0})
-      train_accuracy = train_accuracy/(total_size-train_total_size)*test_batch_size
-      print('%s  test accuracy %g' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_accuracy))
+#      for k in range((total_size-train_total_size)/test_batch_size):
+#        train_accuracy += accuracy.eval(feed_dict={x: test_x[k*test_batch_size:(k+1)*test_batch_size],
+#            y_: test_y[k*test_batch_size:(k+1)*test_batch_size], keep_prob: 1.0})
+#      train_accuracy = train_accuracy/(total_size-train_total_size)*test_batch_size
+#      print('%s  test accuracy %g' % (datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_accuracy))
 
 main()
