@@ -1,6 +1,6 @@
 import os
 #gpu_id = '1,2'
-gpu_id = '0'
+gpu_id = '3'
 os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu_id)
 os.system('echo $CUDA_VISIBLE_DEVICES')
 
@@ -16,8 +16,8 @@ from keras import backend as K
 K.set_session(sess)
 
 
-
 import keras
+from keras.models import model_from_json
 from keras.applications.vgg16 import VGG16
 from keras.preprocessing import image
 from PIL import Image as pilimage
@@ -105,19 +105,45 @@ def generate_val(path, batch_size):
 tensorboard = TensorBoard(log_dir='./vgglogs')
 
 model.fit_generator(generator=generate_train('train.csv',32),steps_per_epoch=1000,
-    epochs=50,callbacks=[tensorboard], 
+    epochs=20,callbacks=[tensorboard], 
     validation_data=generate_val('train.csv',100), validation_steps=100)
 
-'''
-img_path = 'elephant.jpg'
-img = image.load_img(img_path, target_size=(224, 224))
-x = image.img_to_array(img)
-x = np.expand_dims(x, axis=0)
-x = preprocess_input(x)
-preds = model.predict(x)
-# decode the results into a list of tuples (class, description, probability)
-# (one such list for each sample in the batch)
-print('Predicted:', decode_predictions(preds, top=3)[0])
-'''
-# Predicted: [(u'n02504013', u'Indian_elephant', 0.82658225), (u'n01871265', u'tusker', 0.1122357), (u'n02504458', u'African_elephant', 0.061040461)]
+######################save and load model
+# serialize model to JSON
+model_json = model.to_json()
+with open("model.json", "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("model.h5")
+print("Saved model to disk")
+ 
+## load json and create model
+#json_file = open('model.json', 'r')
+#loaded_model_json = json_file.read()
+#json_file.close()
+#loaded_model = model_from_json(loaded_model_json)
+## load weights into new model
+#loaded_model.load_weights("model.h5")
+#print("Loaded model from disk")
+###############################################
+samples_test = np.loadtxt(open("test.csv","rb"),delimiter=",",skiprows=1)
+f_handle = open('test_result.csv', 'a')
+batch_size = 280
+epoch = 100
+for i in range(epoch):
+    x_test = resizeimg(samples_test[i*batch_size:(i+1)*batch_size,:])
+    print("%d batch loaded" % i)
+    y_test = model.predict(x_test, batch_size=28)
+    print("predict done")
 
+    rlt = np.empty(shape=[0,2])
+    for j in range(batch_size):
+        index = j+i*batch_size+1
+        a = np.array([index,y_test[j].argmax()])
+        a = a[np.newaxis,:]
+        rlt = np.append(rlt, a, axis=0)
+    np.savetxt(f_handle,rlt,fmt='%d',delimiter=',')
+    print("saved batch result")
+
+f_handle.close()
+print("saved result") 
